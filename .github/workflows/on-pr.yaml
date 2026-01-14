@@ -1,60 +1,54 @@
-name: PR Validation
+name: on-pr
 
 on:
   pull_request:
     branches:
       - main
+    types:
+      - labeled
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - '.github/workflows/on-pr.yaml'
+      - '.gitops/**'
+      - 'apis/**'
+      - 'examples/**'
+      - 'tests/**'
+      - 'functions/**'
+      - 'upbound.yaml'
+
+permissions:
+  packages: write
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup up CLI
-        uses: upbound/cli-action@v0.3
-
-      - name: Validate examples
-        run: |
-          for example in minimal standard; do
-            echo "Validating $example..."
-            up composition render \
-              apis/traefiks/composition.yaml \
-              examples/traefiks/${example}.yaml \
-              --include-full-xr \
-              --xrd=apis/traefiks/definition.yaml
-          done
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/validate.yaml@v2.13.0
+    with:
+      examples: |
+        [
+          { "example": "examples/traefiks/minimal.yaml" },
+          { "example": "examples/traefiks/standard.yaml" }
+        ]
+      api_path: apis/traefiks
+      error_on_missing_schemas: true
 
   test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/test.yaml@v2.13.0
 
-      - name: Setup up CLI
-        uses: upbound/cli-action@v0.3
+  e2e:
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/e2e.yaml@v2.13.0
 
-      - name: Generate models
-        run: up project generate
-
-      - name: Run tests
-        run: up test run tests/*
-
-  publish-dev:
-    needs: [validate, test]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup up CLI
-        uses: upbound/cli-action@v0.3
-
-      - name: Login to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Build and push dev package
-        run: |
-          up project build
-          up xpkg push ghcr.io/hops-ops/helm-traefik:pr-${{ github.event.pull_request.number }}
+  publish:
+    needs:
+      - validate
+      - test
+      - e2e
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/publish.yaml@v2.13.0
+    secrets: inherit
+    with:
+      tag: pr-${{ github.event.pull_request.number }}-${{ github.sha }}

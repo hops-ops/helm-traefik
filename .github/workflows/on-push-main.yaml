@@ -1,58 +1,60 @@
-name: Main Branch
+name: on-push-main
 
 on:
   push:
     branches:
       - main
+    paths:
+      - '.github/workflows/on-push-main.yaml'
+      - '.github/workflows/on-version-tagged.yaml'
+      - '.gitops/**'
+      - 'apis/**'
+      - 'examples/**'
+      - 'functions/**'
+      - 'tests/**'
+      - 'upbound.yaml'
+
+permissions:
+  packages: write
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup up CLI
-        uses: upbound/cli-action@v0.3
-
-      - name: Validate examples
-        run: |
-          for example in minimal standard; do
-            echo "Validating $example..."
-            up composition render \
-              apis/traefiks/composition.yaml \
-              examples/traefiks/${example}.yaml \
-              --include-full-xr \
-              --xrd=apis/traefiks/definition.yaml
-          done
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/validate.yaml@v2.13.0
+    with:
+      examples: |
+        [
+          { "example": "examples/traefiks/minimal.yaml" },
+          { "example": "examples/traefiks/standard.yaml" }
+        ]
+      api_path: apis/traefiks
+      error_on_missing_schemas: true
 
   test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/test.yaml@v2.13.0
 
-      - name: Setup up CLI
-        uses: upbound/cli-action@v0.3
-
-      - name: Generate models
-        run: up project generate
-
-      - name: Run tests
-        run: up test run tests/*
+  e2e:
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/e2e.yaml@v2.13.0
 
   version-and-tag:
-    needs: [validate, test]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Bump version and push tag
-        id: tag
-        uses: anothrNick/github-tag-action@1.71.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WITH_V: true
-          DEFAULT_BUMP: patch
+    name: Version and Tag
+    needs:
+      - validate
+      - test
+      - e2e
+    uses: unbounded-tech/workflow-vnext-tag/.github/workflows/workflow.yaml@v1.20.2
+    secrets:
+      DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+    with:
+      useDeployKey: true
+      yqPatches: |
+        patches:
+          - filePath: .gitops/deploy/values.yaml
+            selector: .version
+            valuePrefix: "v"
+          - filePath: .gitops/deploy/Chart.yaml
+            selector: .version
+            valuePrefix: ""
