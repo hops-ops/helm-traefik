@@ -1,0 +1,28 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup up CLI
+        uses: upbound/cli-action@v0.3
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push release package
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          up project build
+          up xpkg push ghcr.io/hops-ops/helm-traefik:${VERSION}
+          up xpkg push ghcr.io/hops-ops/helm-traefik:latest

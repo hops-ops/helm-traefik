@@ -1,0 +1,36 @@
+{{- $state := $.state }}
+{{- $traefik := $state.traefik }}
+
+{{- /* Build Helm values */}}
+{{- $defaultValues := dict
+  "fullnameOverride" "traefik"
+  "nameOverride" "traefik"
+}}
+
+{{- $helmValues := dict }}
+{{- if $traefik.overrideAllValues | len }}
+  {{- $helmValues = $traefik.overrideAllValues }}
+{{- else }}
+  {{- $helmValues = mustMergeOverwrite $defaultValues $traefik.values }}
+{{- end }}
+
+---
+apiVersion: helm.m.crossplane.io/v1beta1
+kind: Release
+metadata:
+  name: {{ $traefik.name }}-helm-release
+  labels: {{ $traefik.labels | toJson }}
+  annotations:
+    {{ setResourceNameAnnotation "helm-release" }}
+spec:
+  managementPolicies: {{ $traefik.managementPolicies | toJson }}
+  providerConfigRef:
+    name: {{ $traefik.providerConfigRef.name }}
+    kind: {{ $traefik.providerConfigRef.kind }}
+  forProvider:
+    chart:
+      name: traefik
+      repository: https://traefik.github.io/charts
+      version: "38.0.2"
+    namespace: {{ $traefik.namespace }}
+    values: {{ $helmValues | toJson }}

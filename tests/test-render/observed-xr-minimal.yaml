@@ -1,0 +1,8 @@
+apiVersion: helm.hops.ops.com.ai/v1alpha1
+kind: Traefik
+metadata:
+  name: traefik
+  namespace: example-env
+  uid: test-uid-minimal
+spec:
+  clusterName: my-cluster

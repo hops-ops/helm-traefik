@@ -1,0 +1,11 @@
+{{- $state := $.state }}
+{{- $observed := $.observed.resources | default dict }}
+
+{{- /* Extract observed Helm release */}}
+{{- $helmRelease := dict }}
+{{- if and $observed (index $observed "helm-release") }}
+  {{- $helmRelease = (index $observed "helm-release").resource }}
+{{- end }}
+
+{{- /* Store observed resources */}}
+{{- $_ := set $state.observed "helmRelease" $helmRelease }}

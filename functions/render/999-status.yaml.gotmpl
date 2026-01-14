@@ -1,0 +1,7 @@
+{{- $state := $.state }}
+{{- $status := $state.status }}
+
+---
+apiVersion: helm.hops.ops.com.ai/v1alpha1
+kind: Traefik
+status: {{ $status | toJson }}

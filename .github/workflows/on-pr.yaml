@@ -1,0 +1,60 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup up CLI
+        uses: upbound/cli-action@v0.3
+
+      - name: Validate examples
+        run: |
+          for example in minimal standard; do
+            echo "Validating $example..."
+            up composition render \
+              apis/traefiks/composition.yaml \
+              examples/traefiks/${example}.yaml \
+              --include-full-xr \
+              --xrd=apis/traefiks/definition.yaml
+          done
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup up CLI
+        uses: upbound/cli-action@v0.3
+
+      - name: Generate models
+        run: up project generate
+
+      - name: Run tests
+        run: up test run tests/*
+
+  publish-dev:
+    needs: [validate, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup up CLI
+        uses: upbound/cli-action@v0.3
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push dev package
+        run: |
+          up project build
+          up xpkg push ghcr.io/hops-ops/helm-traefik:pr-${{ github.event.pull_request.number }}

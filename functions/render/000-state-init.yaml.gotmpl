@@ -1,0 +1,52 @@
+{{- $xr := .observed.composite.resource }}
+{{- $spec := $xr.spec }}
+{{- $metadata := $xr.metadata }}
+
+{{- /* Raw spec values (exactly as user provided) */}}
+{{- $specRaw := dict
+  "clusterName" ($spec.clusterName | default "")
+  "managementPolicies" ($spec.managementPolicies | default (list "*"))
+  "labels" ($spec.labels | default dict)
+  "providerConfigRef" ($spec.providerConfigRef | default dict)
+  "namespace" ($spec.namespace | default "")
+  "name" ($spec.name | default "")
+  "values" ($spec.values | default dict)
+  "overrideAllValues" ($spec.overrideAllValues | default dict)
+}}
+
+{{- /* Effective spec values (with defaults applied) */}}
+{{- $providerConfigName := $spec.providerConfigRef.name | default $spec.clusterName | default "" }}
+{{- $providerConfigKind := $spec.providerConfigRef.kind | default "ProviderConfig" }}
+
+{{- $defaultLabels := dict
+  "hops.ops.com.ai/managed" "true"
+  "hops.ops.com.ai/traefik" $metadata.name
+}}
+{{- $effectiveLabels := mustMergeOverwrite $defaultLabels ($spec.labels | default dict) }}
+
+{{- $specEffective := dict
+  "clusterName" ($spec.clusterName | default "")
+  "managementPolicies" ($spec.managementPolicies | default (list "*"))
+  "labels" $effectiveLabels
+  "providerConfigRef" (dict
+    "name" $providerConfigName
+    "kind" $providerConfigKind
+  )
+  "namespace" ($spec.namespace | default "traefik")
+  "name" ($spec.name | default $metadata.name)
+  "values" ($spec.values | default dict)
+  "overrideAllValues" ($spec.overrideAllValues | default dict)
+}}
+
+{{- /* Initialize $state namespace */}}
+{{- $state := dict
+  "spec" (dict
+    "raw" $specRaw
+    "effective" $specEffective
+  )
+  "observed" dict
+  "status" dict
+}}
+
+{{- /* Store state for subsequent templates */}}
+{{- $_ := set $ "state" $state }}

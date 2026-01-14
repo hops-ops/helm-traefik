@@ -1,0 +1,14 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:base"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["functions/render/.*\\.gotmpl$"],
+      "matchStrings": [
+        "repository:\\s*(?<registryUrl>https://[^\\s]+)\\s+version:\\s*\"(?<currentValue>[^\"]+)\"\\s+#\\s*renovate:\\s*chart=(?<depName>[^\\s]+)"
+      ],
+      "datasourceTemplate": "helm"
+    }
+  ]
+}

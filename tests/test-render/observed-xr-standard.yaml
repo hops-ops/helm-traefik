@@ -1,0 +1,25 @@
+apiVersion: helm.hops.ops.com.ai/v1alpha1
+kind: Traefik
+metadata:
+  name: traefik
+  namespace: example-env
+  uid: test-uid-standard
+spec:
+  clusterName: my-cluster
+  namespace: traefik
+  labels:
+    team: platform
+    environment: production
+  providerConfigRef:
+    name: my-cluster
+    kind: ProviderConfig
+  values:
+    deployment:
+      replicas: 2
+    ingressRoute:
+      dashboard:
+        enabled: true
+    ports:
+      web:
+        redirectTo:
+          port: websecure

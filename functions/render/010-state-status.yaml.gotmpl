@@ -1,0 +1,29 @@
+{{- $state := $.state }}
+{{- $observed := $state.observed }}
+
+{{- /* Extract status from observed Helm release */}}
+{{- $releaseStatus := dict "name" "" "namespace" "" "ready" false }}
+{{- if $observed.helmRelease }}
+  {{- $atProvider := $observed.helmRelease.status.atProvider | default dict }}
+  {{- $conditions := $observed.helmRelease.status.conditions | default list }}
+  {{- $isReady := false }}
+  {{- range $conditions }}
+    {{- if and (eq .type "Ready") (eq .status "True") }}
+      {{- $isReady = true }}
+    {{- end }}
+  {{- end }}
+  {{- $releaseStatus = dict
+    "name" ($atProvider.releaseDescription | default "")
+    "namespace" ($atProvider.namespace | default "")
+    "ready" $isReady
+  }}
+{{- end }}
+
+{{- /* Build status output */}}
+{{- $status := dict
+  "ready" $releaseStatus.ready
+  "release" $releaseStatus
+}}
+
+{{- /* Store status */}}
+{{- $_ := set $state "status" $status }}

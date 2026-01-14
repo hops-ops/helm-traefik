@@ -1,0 +1,58 @@
+name: Main Branch
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup up CLI
+        uses: upbound/cli-action@v0.3
+
+      - name: Validate examples
+        run: |
+          for example in minimal standard; do
+            echo "Validating $example..."
+            up composition render \
+              apis/traefiks/composition.yaml \
+              examples/traefiks/${example}.yaml \
+              --include-full-xr \
+              --xrd=apis/traefiks/definition.yaml
+          done
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup up CLI
+        uses: upbound/cli-action@v0.3
+
+      - name: Generate models
+        run: up project generate
+
+      - name: Run tests
+        run: up test run tests/*
+
+  version-and-tag:
+    needs: [validate, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bump version and push tag
+        id: tag
+        uses: anothrNick/github-tag-action@1.71.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: true
+          DEFAULT_BUMP: patch
